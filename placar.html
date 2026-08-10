@@ -355,14 +355,13 @@
     color: var(--ink-soft);
     font-style: italic;
   }
-  .detail-group + .detail-group { margin-top: 8px; }
-  .detail-group-label {
+  .detail-group + .detail-group { margin-top: 6px; }
+  .detail-date-label {
     font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--ink-soft);
-    font-weight: 700;
-    margin-bottom: 4px;
+    opacity: 0.7;
+    font-weight: 400;
+    margin-bottom: 3px;
   }
   .detail-chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .detail-chip {
@@ -692,7 +691,7 @@
     var totals = {};
     var warnings = [];
     PARTICIPANTS.forEach(function (p) {
-      totals[p.key] = { fsf: 0, academia: 0, bonus: 0, total: 0, byRule: {}, byRuleCount: {} };
+      totals[p.key] = { fsf: 0, academia: 0, bonus: 0, total: 0, byRule: {}, byRuleCount: {}, byDate: {} };
     });
 
     EVENTS.forEach(function (ev) {
@@ -711,6 +710,11 @@
         t.byRuleCount[rule.key] = (t.byRuleCount[rule.key] || 0) + 1;
         t[rule.category] += rule.points;
         t.total += rule.points;
+
+        if (!t.byDate[ev.date]) t.byDate[ev.date] = { byRule: {}, byRuleCount: {} };
+        var td = t.byDate[ev.date];
+        td.byRule[rule.key] = (td.byRule[rule.key] || 0) + rule.points;
+        td.byRuleCount[rule.key] = (td.byRuleCount[rule.key] || 0) + 1;
       });
       if (rule.key === 'quinteto' && ev.participants.length > 5) {
         warnings.push('"Quinteto do lance" com ' + ev.participants.length + ' pessoas em ' + ev.date + ' (esperado até 5) — confira se está certo.');
@@ -788,6 +792,11 @@
   function formatDateBR(iso) {
     var parts = iso.split('-');
     return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function formatDateShort(iso) {
+    var parts = iso.split('-');
+    return parts[2] + '/' + parts[1];
   }
 
   // ---------------------------------------------------------------------
@@ -908,24 +917,22 @@
   }
 
   function renderBreakdown(t) {
-    var cats = ['fsf', 'academia', 'bonus'];
-    var any = false;
+    var dates = Object.keys(t.byDate).sort(function (a, b) { return b.localeCompare(a); });
+    if (!dates.length) return '<span class="detail-empty">Ainda sem pontos lançados.</span>';
     var out = '';
-    cats.forEach(function (cat) {
-      var rulesInCat = RULES.filter(function (r) { return r.category === cat && t.byRuleCount[r.key]; });
-      if (!rulesInCat.length) return;
-      any = true;
-      out += '<div class="detail-group"><div class="detail-group-label">' + CATEGORY_LABELS[cat] + '</div><div class="detail-chips">';
-      rulesInCat.forEach(function (r) {
-        var count = t.byRuleCount[r.key];
-        var pts = t.byRule[r.key];
+    dates.forEach(function (date) {
+      var td = t.byDate[date];
+      var rulesInDate = RULES.filter(function (r) { return td.byRuleCount[r.key]; });
+      out += '<div class="detail-group"><div class="detail-date-label">' + formatDateShort(date) + '</div><div class="detail-chips">';
+      rulesInDate.forEach(function (r) {
+        var count = td.byRuleCount[r.key];
+        var pts = td.byRule[r.key];
         out += '<span class="detail-chip">' + r.icon + ' ' + escapeHtml(r.label) +
           (count > 1 ? ' ×' + count : '') +
           '<span class="pts' + (pts < 0 ? ' neg' : '') + '">' + fmtPts(pts) + '</span></span>';
       });
       out += '</div></div>';
     });
-    if (!any) out = '<span class="detail-empty">Ainda sem pontos lançados.</span>';
     return out;
   }
 
